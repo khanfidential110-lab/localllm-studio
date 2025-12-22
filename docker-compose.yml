@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # CPU-only deployment
+  localllm-cpu:
+    build:
+      context: .
+      target: base
+    ports:
+      - "8000:8000"
+      - "7860:7860"
+    volumes:
+      - ./models:/app/models
+      - huggingface_cache:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # NVIDIA GPU deployment
+  localllm-cuda:
+    build:
+      context: .
+      target: cuda
+    ports:
+      - "8000:8000"
+      - "7860:7860"
+    volumes:
+      - ./models:/app/models
+      - huggingface_cache:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    restart: unless-stopped
+
+volumes:
+  huggingface_cache:

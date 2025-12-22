@@ -1,0 +1,71 @@
+[project]
+name = "localllm-studio"
+version = "1.0.0"
+description = "Cross-platform local LLM application"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "LocalLLM Studio Team"}
+]
+keywords = ["llm", "ai", "local", "inference", "llama", "gpt"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "flask>=2.0.0",
+    "huggingface-hub>=0.19.0",
+    "requests>=2.25.0",
+]
+
+[project.optional-dependencies]
+llama = ["llama-cpp-python>=0.2.0"]
+mlx = ["mlx>=0.10.0", "mlx-lm>=0.10.0"]
+transformers = ["transformers>=4.30.0", "torch>=2.0.0"]
+all = [
+    "llama-cpp-python>=0.2.0",
+    "mlx>=0.10.0",
+    "mlx-lm>=0.10.0", 
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+localllm = "localllm_studio.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/localllm/studio"
+Documentation = "https://github.com/localllm/studio#readme"
+Repository = "https://github.com/localllm/studio"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["localllm_studio*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
