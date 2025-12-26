@@ -218,39 +218,95 @@ def get_ram_info() -> tuple[float, float]:
 
 
 def _get_nvidia_gpu() -> Optional[GPUInfo]:
-    """Detect NVIDIA GPU via nvidia-smi."""
-    if not shutil.which("nvidia-smi"):
-        return None
+    """Detect NVIDIA GPU via nvidia-smi or WMI on Windows."""
+    nvidia_smi_path = None
     
-    try:
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            line = result.stdout.strip().split('\n')[0]
-            parts = line.split(',')
-            name = parts[0].strip()
-            vram_mb = float(parts[1].strip())
-            
-            # Check CUDA version
+    # Check if nvidia-smi is in PATH
+    if shutil.which("nvidia-smi"):
+        nvidia_smi_path = "nvidia-smi"
+    
+    # Windows: Check common NVIDIA driver locations
+    if nvidia_smi_path is None and platform.system() == "Windows":
+        common_paths = [
+            r"C:\Windows\System32\nvidia-smi.exe",
+            r"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe",
+            os.path.expandvars(r"%ProgramFiles%\NVIDIA Corporation\NVSMI\nvidia-smi.exe"),
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                nvidia_smi_path = path
+                break
+    
+    # Try nvidia-smi if found
+    if nvidia_smi_path:
+        try:
             result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"],
+                [nvidia_smi_path, "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
                 capture_output=True, text=True
             )
-            cuda_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else None
-            
-            return GPUInfo(
-                vendor=GPUVendor.NVIDIA,
-                name=name,
-                vram_gb=round(vram_mb / 1024, 1),
-                cuda_available=True,
-                cuda_version=cuda_version,
+            if result.returncode == 0 and result.stdout.strip():
+                line = result.stdout.strip().split('\n')[0]
+                parts = line.split(',')
+                name = parts[0].strip()
+                vram_mb = float(parts[1].strip())
+                
+                # Check CUDA version
+                result = subprocess.run(
+                    [nvidia_smi_path, "--query-gpu=driver_version", "--format=csv,noheader"],
+                    capture_output=True, text=True
+                )
+                cuda_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else None
+                
+                return GPUInfo(
+                    vendor=GPUVendor.NVIDIA,
+                    name=name,
+                    vram_gb=round(vram_mb / 1024, 1),
+                    cuda_available=True,
+                    cuda_version=cuda_version,
+                )
+        except Exception:
+            pass
+    
+    # Windows fallback: Use WMI to detect GPU
+    if platform.system() == "Windows":
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["wmic", "path", "win32_videocontroller", "get", "name,adapterram", "/format:csv"],
+                capture_output=True, text=True, shell=True
             )
-    except Exception:
-        pass
+            if result.returncode == 0:
+                lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+                for line in lines[1:]:  # Skip header
+                    parts = line.split(',')
+                    if len(parts) >= 3:
+                        vram_bytes = int(parts[1]) if parts[1].isdigit() else 0
+                        gpu_name = parts[2]
+                        
+                        if 'nvidia' in gpu_name.lower() or 'geforce' in gpu_name.lower() or 'rtx' in gpu_name.lower():
+                            return GPUInfo(
+                                vendor=GPUVendor.NVIDIA,
+                                name=gpu_name,
+                                vram_gb=round(vram_bytes / (1024 ** 3), 1) if vram_bytes > 0 else 0,
+                                cuda_available=True,  # Assume CUDA available if NVIDIA detected
+                            )
+                        elif 'amd' in gpu_name.lower() or 'radeon' in gpu_name.lower():
+                            return GPUInfo(
+                                vendor=GPUVendor.AMD,
+                                name=gpu_name,
+                                vram_gb=round(vram_bytes / (1024 ** 3), 1) if vram_bytes > 0 else 0,
+                            )
+                        elif 'intel' in gpu_name.lower():
+                            return GPUInfo(
+                                vendor=GPUVendor.INTEL,
+                                name=gpu_name,
+                                vram_gb=round(vram_bytes / (1024 ** 3), 1) if vram_bytes > 0 else 0,
+                            )
+        except Exception:
+            pass
     
     return None
+
 
 
 def _get_apple_gpu() -> Optional[GPUInfo]:

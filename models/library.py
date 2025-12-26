@@ -65,6 +65,18 @@ GGUF_MODELS: List[ModelEntry] = [
         quantization="Q4_K_M",
     ),
     ModelEntry(
+        name="FunctionGemma 270M",
+        repo_id="ggml-org/functiongemma-270m-it-GGUF",
+        description="Google's tiny function-calling model",
+        category=ModelCategory.TINY,
+        model_type=ModelType.INSTRUCT,
+        size_gb=0.3,
+        context_length=8192,
+        parameters="270M",
+        format="GGUF",
+        quantization="Q4_K_M", 
+    ),
+    ModelEntry(
         name="Phi-3.5 Mini",
         repo_id="bartowski/Phi-3.5-mini-instruct-GGUF",
         description="Microsoft's compact powerhouse, excellent reasoning",

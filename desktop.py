@@ -16,6 +16,15 @@ import logging
 import traceback
 from contextlib import contextmanager
 
+# Fix SSL certificates for frozen app (PyInstaller)
+# This must be done BEFORE any HTTPS connections
+try:
+    import certifi
+    os.environ['SSL_CERT_FILE'] = certifi.where()
+    os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+except ImportError:
+    pass
+
 # Configure logging before any imports
 logging.basicConfig(
     level=logging.INFO,
@@ -451,6 +460,8 @@ def main():
 
 
 if __name__ == '__main__':
+    from multiprocessing import freeze_support
+    freeze_support()
     try:
         main()
     except KeyboardInterrupt:

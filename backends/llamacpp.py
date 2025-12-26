@@ -7,6 +7,7 @@ Supports GGUF models on Windows, Linux, and macOS.
 
 import os
 import time
+import threading
 from pathlib import Path
 from typing import Generator, Dict, Any, List, Optional
 
@@ -34,6 +35,7 @@ class LlamaCppBackend(InferenceBackend):
         super().__init__()
         self._llm = None
         self._context_length = 4096
+        self._stop_event = threading.Event()
     
     def get_capabilities(self) -> List[BackendCapability]:
         return [
@@ -179,108 +181,84 @@ class LlamaCppBackend(InferenceBackend):
             self._current_process = None
             
     def _download_from_hf(self, repo_id: str, progress_callback: Optional[callable] = None) -> str:
-        """Download a GGUF model from HuggingFace using a subprocess for cancelability."""
-        import sys
-        import subprocess
-        import re
+        """Download a GGUF model from HuggingFace with retry logic."""
+        import time as time_module
+        import traceback
         
         # We need to find the filename first to download specifically
         try:
-            from huggingface_hub import list_repo_files
+            from huggingface_hub import list_repo_files, hf_hub_download
         except ImportError:
             raise ImportError("huggingface-hub not installed.")
 
         print(f"🔍 Searching for GGUF files in {repo_id}...")
         if progress_callback:
             progress_callback("Finding optimal model file...", 0.1)
-            
-        try:
-            # We do this in main process as it's quick and non-blocking usually (metadata only)
-            files = list_repo_files(repo_id)
-            gguf_files = [f for f in files if f.endswith(".gguf")]
-            
-            if not gguf_files:
-                raise FileNotFoundError(f"No GGUF files found in {repo_id}")
-            
-            # Prefer Q4_K_M or similar mid-quality quantization
-            preferred = None
-            for pattern in ["Q4_K_M", "Q4_K_S", "Q5_K_M", "Q4_0", "Q5_0"]:
-                for f in gguf_files:
-                    if pattern.lower() in f.lower():
-                        preferred = f
+        
+        max_retries = 3
+        retry_delay = 2  # seconds
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"📡 Attempt {attempt + 1}: Fetching file list from HuggingFace...")
+                
+                # Get file list
+                files = list_repo_files(repo_id)
+                gguf_files = [f for f in files if f.endswith(".gguf")]
+                
+                print(f"✅ Found {len(gguf_files)} GGUF files")
+                
+                if not gguf_files:
+                    raise FileNotFoundError(f"No GGUF files found in {repo_id}")
+                
+                # Prefer Q4_K_M or similar mid-quality quantization
+                preferred = None
+                for pattern in ["Q4_K_M", "Q4_K_S", "Q5_K_M", "Q4_0", "Q5_0"]:
+                    for f in gguf_files:
+                        if pattern.lower() in f.lower():
+                            preferred = f
+                            break
+                    if preferred:
                         break
-                if preferred:
-                    break
-            
-            gguf_file = preferred or gguf_files[0]
-            
-            # Now run the actual download in a subprocess
-            script = f"""
-from huggingface_hub import hf_hub_download
-import sys
-
-try:
-    path = hf_hub_download(repo_id="{repo_id}", filename="{gguf_file}")
-    print(f"PATH::{{path}}")
-except Exception as e:
-    print(f"ERROR::{{e}}")
-    sys.exit(1)
-"""
-            print(f"📥 Downloading: {gguf_file}")
-            if progress_callback:
-                progress_callback(f"Downloading {gguf_file} (check terminal for %)...", 0.2)
-            
-            self._current_process = subprocess.Popen(
-                [sys.executable, "-c", script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1
-            )
-            
-            # Read output
-            local_path = None
-            while True:
-                # Check if cancelled
-                if self._current_process.poll() is not None:
-                    break
                 
-                line = self._current_process.stdout.readline()
-                if line:
-                    if "PATH::" in line:
-                        local_path = line.split("PATH::")[1].strip()
-                    # We could parse other output here if we added tqdm callback script
+                gguf_file = preferred or gguf_files[0]
                 
-                # Small sleep to yield
-                time.sleep(0.1)
-            
-            # Get return code
-            rc = self._current_process.poll()
-            self._current_process = None
-            
-            if rc != 0 and rc is not None:
-                # Read stderr
-                _, stderr = self._current_process.communicate() if self._current_process else (None, "Process killed")
-                if rc == -9 or rc == -15: # Killed
-                     raise InterruptedError("Download cancelled by user")
-                raise RuntimeError(f"Download failed: {stderr}")
+                print(f"📥 Downloading: {gguf_file} (attempt {attempt + 1}/{max_retries})")
+                if progress_callback:
+                    progress_callback(f"Downloading {gguf_file}...", 0.2)
                 
-            if not local_path:
-                 # Try to read remainder
-                 out, err = self._current_process.communicate() if self._current_process else ("", "")
-                 if "PATH::" in out:
-                     local_path = out.split("PATH::")[1].strip()
-                 else:
-                     if "ERROR::" in out:
-                         raise RuntimeError(out.split("ERROR::")[1].strip())
-                     raise RuntimeError("Download process finished without returning path")
-
-            return local_path
-            
-        except Exception as e:
-            if isinstance(e, InterruptedError):
-                raise e
-            raise RuntimeError(f"Failed to download from HuggingFace: {e}")
+                # Direct download with resume support
+                local_path = hf_hub_download(
+                    repo_id=repo_id, 
+                    filename=gguf_file,
+                    resume_download=True
+                )
+                print(f"✅ Download complete: {local_path}")
+                return local_path
+                
+            except Exception as e:
+                last_error = e
+                error_type = type(e).__name__
+                error_msg = str(e)
+                print(f"❌ Error ({error_type}): {error_msg}")
+                print(f"   Full traceback:\n{traceback.format_exc()}")
+                
+                # Check if this is a retryable error
+                retryable = any(term in error_type.lower() or term in error_msg.lower() 
+                               for term in ['connection', 'timeout', 'network', 'ssl', 'socket'])
+                
+                if retryable and attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)
+                    print(f"⚠️ Retrying in {wait_time}s...")
+                    if progress_callback:
+                        progress_callback(f"Connection error, retrying in {wait_time}s...", 0.1)
+                    time_module.sleep(wait_time)
+                elif isinstance(e, (InterruptedError, FileNotFoundError)):
+                    raise e
+                else:
+                    # Non-retryable or out of retries
+                    raise RuntimeError(f"Download failed ({error_type}): {error_msg}")
     
     def unload_model(self) -> None:
         """Unload the model and free memory."""
@@ -376,6 +354,10 @@ except Exception as e:
                 finish_reason="error",
             )
     
+    def stop_generation(self):
+        """Signal to stop current generation."""
+        self._stop_event.set()
+
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -387,6 +369,9 @@ except Exception as e:
         
         if config is None:
             config = GenerationConfig()
+            
+        # Clear stop event at start of generation
+        self._stop_event.clear()
         
         start_time = time.perf_counter()
         tokens_generated = 0
@@ -406,6 +391,15 @@ except Exception as e:
                 )
                 
                 for output in stream:
+                    # Check for cancellation
+                    if self._stop_event.is_set():
+                        yield GenerationResult(
+                            text="",
+                            tokens_generated=tokens_generated,
+                            finish_reason="stop",
+                        )
+                        return
+
                     delta = output["choices"][0].get("delta", {})
                     token_text = delta.get("content", "")
                     
@@ -433,6 +427,10 @@ except Exception as e:
                     finish_reason="stop",
                 )
             else:
+                # Non-streaming (can't easily interrupt internal C++ loop, but we can check before)
+                if self._stop_event.is_set():
+                    return
+
                 output = self._llm.create_chat_completion(
                     messages=messages,
                     max_tokens=config.max_tokens,
