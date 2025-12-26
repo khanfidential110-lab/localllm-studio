@@ -64,11 +64,17 @@ jobs:
         pip install pyinstaller
 
     # Special handling for llama-cpp-python on different platforms
-    - name: Install llama-cpp-python (Linux/Mac)
-      if: runner.os != 'Windows'
+    - name: Install llama-cpp-python (Linux)
+      if: runner.os == 'Linux'
       run: |
-        # Use pre-built wheels where possible
+        # Use pre-built wheels for Linux
         pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+    - name: Install llama-cpp-python (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        # Use pre-built wheels for macOS (Metal support)
+        pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal
 
     - name: Install llama-cpp-python (Windows)
       if: runner.os == 'Windows'
