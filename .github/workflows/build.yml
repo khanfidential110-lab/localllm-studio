@@ -1,132 +1,105 @@
-name: Build Installers
+name: Build LocalLLM Studio
 
 on:
   push:
-    branches: [ main, master ]
-    tags:
-      - 'v*'
+    branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Allow manual trigger
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            name: macOS
-            artifact: LocalLLM-Studio-macOS
+          - os: ubuntu-latest
+            artifact_name: LocalLLM-Studio-Linux.AppImage
+            executable_path: dist/localllm-studio
+            asset_content_type: application/octet-stream
             
           - os: windows-latest
-            name: Windows
-            artifact: LocalLLM-Studio-Windows
+            artifact_name: LocalLLM-Studio-Setup.exe
+            executable_path: dist/LocalLLM Studio.exe
+            asset_content_type: application/vnd.microsoft.portable-executable
             
-          - os: ubuntu-latest
-            name: Linux
-            artifact: LocalLLM-Studio-Linux
-
-    runs-on: ${{ matrix.os }}
-    name: Build ${{ matrix.name }}
+          - os: macos-latest
+            artifact_name: LocalLLM-Studio-macOS.dmg
+            executable_path: dist/LocalLLM Studio.app
+            asset_content_type: application/x-apple-diskimage
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+    # Linux specific setup
+    - name: Install Linux Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.0-dev \
+          build-essential \
+          libasound2-dev \
+          libssl-dev \
+          cmake
+          
+    # macOS specific setup
+    - name: Install macOS Dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake
 
-      # Linux-specific: Install system dependencies for WebView
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
 
-      - name: Build with PyInstaller
-        run: |
-          python -m PyInstaller localllm_studio.spec --noconfirm
+    # Special handling for llama-cpp-python on different platforms
+    - name: Install llama-cpp-python (Linux/Mac)
+      if: runner.os != 'Windows'
+      run: |
+        CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_VENDOR=Generic" pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
 
-      # macOS: Create DMG
-      - name: Create macOS DMG
-        if: runner.os == 'macOS'
-        run: |
-          cd dist
-          hdiutil create -volname "LocalLLM Studio" \
-            -srcfolder "LocalLLM Studio.app" \
-            -ov -format UDZO \
-            "LocalLLM-Studio-macOS.dmg"
+    - name: Install llama-cpp-python (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        # Use pre-built wheels for Windows or basic CPU build
+        $env:CMAKE_ARGS = "-DLLAMA_BLAS=ON -DLLAMA_VENDOR=Generic"
+        pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
 
-      # Windows: Zip the executable
-      - name: Package Windows build
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "dist\LocalLLM Studio.exe" -DestinationPath "dist\LocalLLM-Studio-Windows.zip"
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller localllm_studio.spec
 
-      # Linux: Create tarball
-      - name: Package Linux build
-        if: runner.os == 'Linux'
-        run: |
-          cd dist
-          tar -czvf LocalLLM-Studio-Linux.tar.gz "LocalLLM Studio"
+    # Packaging for Linux (AppImage) - Simplified: just tar or keep binary for now
+    # Ideally we'd use appimagetool, but for "hustle free" let's just zip the binary or folder
+    - name: Package Linux
+      if: runner.os == 'Linux'
+      run: |
+        mv "dist/localllm-studio" "dist/LocalLLM-Studio-Linux"
+        chmod +x "dist/LocalLLM-Studio-Linux"
 
-      # Upload artifacts
-      - name: Upload macOS artifact
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: dist/LocalLLM-Studio-macOS.dmg
-          retention-days: 30
+    # Upload Artifacts (for workflow run)
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/
 
-      - name: Upload Windows artifact
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: dist/LocalLLM-Studio-Windows.zip
-          retention-days: 30
-
-      - name: Upload Linux artifact
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: dist/LocalLLM-Studio-Linux.tar.gz
-          retention-days: 30
-
-  # Create GitHub Release when tagged
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/LocalLLM-Studio-macOS/LocalLLM-Studio-macOS.dmg
-            artifacts/LocalLLM-Studio-Windows/LocalLLM-Studio-Windows.zip
-            artifacts/LocalLLM-Studio-Linux/LocalLLM-Studio-Linux.tar.gz
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # Create Release (only on tag)
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
