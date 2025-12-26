@@ -191,7 +191,7 @@ class LlamaCppBackend(InferenceBackend):
         except ImportError:
             raise ImportError("huggingface-hub not installed.")
 
-        print(f"🔍 Searching for GGUF files in {repo_id}...")
+        print(f"[SEARCH] Searching for GGUF files in {repo_id}...")
         if progress_callback:
             progress_callback("Finding optimal model file...", 0.1)
         
@@ -201,13 +201,13 @@ class LlamaCppBackend(InferenceBackend):
         
         for attempt in range(max_retries):
             try:
-                print(f"📡 Attempt {attempt + 1}: Fetching file list from HuggingFace...")
+                print(f"[INFO] Attempt {attempt + 1}: Fetching file list from HuggingFace...")
                 
                 # Get file list
                 files = list_repo_files(repo_id)
                 gguf_files = [f for f in files if f.endswith(".gguf")]
                 
-                print(f"✅ Found {len(gguf_files)} GGUF files")
+                print(f"[OK] Found {len(gguf_files)} GGUF files")
                 
                 if not gguf_files:
                     raise FileNotFoundError(f"No GGUF files found in {repo_id}")
@@ -224,7 +224,7 @@ class LlamaCppBackend(InferenceBackend):
                 
                 gguf_file = preferred or gguf_files[0]
                 
-                print(f"📥 Downloading: {gguf_file} (attempt {attempt + 1}/{max_retries})")
+                print(f"[DOWNLOAD] Downloading: {gguf_file} (attempt {attempt + 1}/{max_retries})")
                 if progress_callback:
                     progress_callback(f"Downloading {gguf_file}...", 0.2)
                 
@@ -234,14 +234,14 @@ class LlamaCppBackend(InferenceBackend):
                     filename=gguf_file,
                     resume_download=True
                 )
-                print(f"✅ Download complete: {local_path}")
+                print(f"[OK] Download complete: {local_path}")
                 return local_path
                 
             except Exception as e:
                 last_error = e
                 error_type = type(e).__name__
                 error_msg = str(e)
-                print(f"❌ Error ({error_type}): {error_msg}")
+                print(f"[ERROR] Error ({error_type}): {error_msg}")
                 print(f"   Full traceback:\n{traceback.format_exc()}")
                 
                 # Check if this is a retryable error
