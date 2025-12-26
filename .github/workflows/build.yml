@@ -67,7 +67,8 @@ jobs:
     - name: Install llama-cpp-python (Linux/Mac)
       if: runner.os != 'Windows'
       run: |
-        CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_VENDOR=Generic" pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+        # Use pre-built wheels where possible
+        pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
     - name: Install llama-cpp-python (Windows)
       if: runner.os == 'Windows'
