@@ -411,7 +411,7 @@ def detect_hardware() -> HardwareInfo:
 def print_hardware_info(hw: HardwareInfo) -> None:
     """Print formatted hardware information."""
     print("\n" + "=" * 60)
-    print("🖥️  HARDWARE DETECTION")
+    print("[SYSTEM]  HARDWARE DETECTION")
     print("=" * 60)
     print(f"  Platform:     {hw.platform.value.capitalize()} {hw.platform_version}")
     print(f"  CPU:          {hw.cpu_brand}")
@@ -424,9 +424,9 @@ def print_hardware_info(hw: HardwareInfo) -> None:
     if hw.gpu.vram_gb > 0:
         print(f"  GPU VRAM:     {hw.gpu.vram_gb:.1f} GB")
     if hw.gpu.cuda_available:
-        print(f"  CUDA:         ✅ Available (v{hw.gpu.cuda_version})")
+        print(f"  CUDA:         [OK] Available (v{hw.gpu.cuda_version})")
     if hw.gpu.metal_available:
-        print(f"  Metal:        ✅ Available")
+        print(f"  Metal:        [OK] Available")
     print("-" * 60)
     print(f"  Recommended Backend: {hw.recommended_backend.value}")
     print(f"  Max Model Size:      {hw.recommended_model_size_gb:.1f} GB")

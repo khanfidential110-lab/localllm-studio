@@ -80,7 +80,7 @@ class TransformersBackend(InferenceBackend):
                 "For GPU: pip install transformers torch bitsandbytes accelerate"
             )
         
-        print(f"📥 Loading Transformers model: {model_path}")
+        print(f"[LOAD] Loading Transformers model: {model_path}")
         
         # Determine device
         if torch.cuda.is_available():
@@ -107,14 +107,14 @@ class TransformersBackend(InferenceBackend):
                     from transformers import BitsAndBytesConfig
                     model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True)
                 except ImportError:
-                    print("⚠️ bitsandbytes not available, loading in fp16")
+                    print("[WARN] bitsandbytes not available, loading in fp16")
                     model_kwargs["torch_dtype"] = torch.float16
             elif load_in_8bit:
                 try:
                     from transformers import BitsAndBytesConfig
                     model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
                 except ImportError:
-                    print("⚠️ bitsandbytes not available, loading in fp16")
+                    print("[WARN] bitsandbytes not available, loading in fp16")
                     model_kwargs["torch_dtype"] = torch.float16
             else:
                 model_kwargs["torch_dtype"] = torch.float16
@@ -161,7 +161,7 @@ class TransformersBackend(InferenceBackend):
             quantization=quant,
         )
         
-        print(f"✅ Model loaded on {self._device}!")
+        print(f"[OK] Model loaded on {self._device}!")
         return self._model_info
     
     def unload_model(self) -> None:

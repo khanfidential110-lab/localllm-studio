@@ -459,7 +459,7 @@ WEB_UI_TEMPLATE = '''
                     <select id="model-select">
                         {% for model in models %}
                         <option value="{{ model.repo }}" {{ 'selected' if model.recommended else '' }}>
-                            {{ '✅' if model.fits else '⚠️' }} {{ model.name }} ({{ model.size_gb }}GB)
+                            {{ '[OK]' if model.fits else '[WARN]' }} {{ model.name }} ({{ model.size_gb }}GB)
                         </option>
                         {% endfor %}
                     </select>
@@ -662,7 +662,7 @@ WEB_UI_TEMPLATE = '''
                     btn.disabled = false;
                     
                     // Reset status
-                    status.textContent = '✅ ' + data.message;
+                    status.textContent = '[OK] ' + data.message;
                     status.style.color = 'var(--success)';
                     
                     // Update connection badge
@@ -675,13 +675,13 @@ WEB_UI_TEMPLATE = '''
                     
                     showToast('🧹 Model unloaded, RAM freed!', 'success');
                 } else {
-                    status.textContent = '❌ ' + (data.error || 'Failed to unload');
+                    status.textContent = '[ERROR] ' + (data.error || 'Failed to unload');
                     status.style.color = 'var(--error)';
                     showToast(data.error || 'Failed to unload', 'error');
                 }
             } catch (e) {
                 console.error(e);
-                status.textContent = '❌ Error unloading model';
+                status.textContent = '[ERROR] Error unloading model';
                 status.style.color = 'var(--error)';
                 showToast('Error unloading model', 'error');
             } finally {
@@ -744,8 +744,8 @@ WEB_UI_TEMPLATE = '''
                             }
                             
                             if (data.success) {
-                                console.log('✅ Model loaded successfully, showing Free RAM button');
-                                status.textContent = '✅ ' + data.message;
+                                console.log('[OK] Model loaded successfully, showing Free RAM button');
+                                status.textContent = '[OK] ' + data.message;
                                 status.style.color = 'var(--success)';
                                 status.classList.remove('error-text');
                                 document.getElementById('send-btn').disabled = false;
@@ -784,7 +784,7 @@ WEB_UI_TEMPLATE = '''
                                      status.textContent = '🛑 Cancelled';
                                      status.style.color = 'var(--warning)';
                                 } else {
-                                     status.textContent = '❌ ' + data.error;
+                                     status.textContent = '[ERROR] ' + data.error;
                                      status.style.color = 'var(--error)';
                                      showToast(data.error, 'error');
                                 }
@@ -797,7 +797,7 @@ WEB_UI_TEMPLATE = '''
                     // Handled in stopLoading
                 } else if (!modelLoaded) {
                     // Only show connection error if model wasn't loaded
-                    status.textContent = '❌ Connection error';
+                    status.textContent = '[ERROR] Connection error';
                     status.style.color = 'var(--error)';
                     console.error(error);
                 }
@@ -851,7 +851,7 @@ WEB_UI_TEMPLATE = '''
             if (isGenerating) return;
             
             if (!modelLoaded) {
-                showToast('⚠️ Please load a model first!', 'error');
+                showToast('[WARN] Please load a model first!', 'error');
                 // Highlight load button
                 const loadBtn = document.getElementById('load-btn');
                 loadBtn.style.boxShadow = '0 0 0 4px rgba(239, 68, 68, 0.4)';
@@ -933,7 +933,7 @@ WEB_UI_TEMPLATE = '''
                                 const data = JSON.parse(line.slice(6));
                                 if (data.text) fullText += data.text;
                                 if (data.stats) lastStats = data.stats;
-                                if (data.error) fullText = '❌ ' + data.error;
+                                if (data.error) fullText = '[ERROR] ' + data.error;
                                 
                                 if (!assistantDiv) {
                                     assistantDiv = addMessage('assistant', fullText + '▌');
@@ -961,7 +961,7 @@ WEB_UI_TEMPLATE = '''
                 if (error.name === 'AbortError') {
                     showToast('🛑 Generation stopped', 'info');
                 } else {
-                    addMessage('assistant', '❌ Error: ' + error.message);
+                    addMessage('assistant', '[ERROR] Error: ' + error.message);
                 }
             }
             
@@ -979,7 +979,7 @@ WEB_UI_TEMPLATE = '''
             if (!modelLoaded) {
                 messages.innerHTML = `
                     <div class="welcome">
-                        <div class="welcome-icon">🚀</div>
+                        <div class="welcome-icon">[START]</div>
                         <h2>Welcome to LocalLLM Studio</h2>
                         <p>Select and load a model from the sidebar to start chatting.</p>
                     </div>
@@ -1210,7 +1210,7 @@ class WebUI:
     def run(self, host: str = "0.0.0.0", port: int = 7860):
         """Run the web UI."""
         print(f"\n{'=' * 60}")
-        print("🚀 LocalLLM Studio - Web UI")
+        print("[START] LocalLLM Studio - Web UI")
         print(f"{'=' * 60}")
         print(f"\n🌐 Open in browser: http://localhost:{port}")
         print("   Press Ctrl+C to stop\n")

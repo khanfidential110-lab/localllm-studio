@@ -120,7 +120,7 @@ class LlamaCppBackend(InferenceBackend):
         if n_threads is None:
             n_threads = min(os.cpu_count() or 4, 8)
         
-        print(f"📥 Loading model: {model_path}")
+        print(f"[LOAD] Loading model: {model_path}")
         
         try:
             self._llm = Llama(
@@ -169,7 +169,7 @@ class LlamaCppBackend(InferenceBackend):
         if progress_callback:
             progress_callback("Ready", 1.0)
             
-        print(f"✅ Model loaded! ({file_size:.1f} GB)")
+        print(f"[OK] Model loaded! ({file_size:.1f} GB)")
         
         return self._model_info
     
@@ -250,7 +250,7 @@ class LlamaCppBackend(InferenceBackend):
                 
                 if retryable and attempt < max_retries - 1:
                     wait_time = retry_delay * (2 ** attempt)
-                    print(f"⚠️ Retrying in {wait_time}s...")
+                    print(f"[WARN] Retrying in {wait_time}s...")
                     if progress_callback:
                         progress_callback(f"Connection error, retrying in {wait_time}s...", 0.1)
                     time_module.sleep(wait_time)

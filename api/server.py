@@ -361,15 +361,15 @@ class APIServer:
     def run(self, host: str = "0.0.0.0", port: int = 8000, debug: bool = False):
         """Run the API server."""
         print(f"\n{'=' * 60}")
-        print("🚀 LocalLLM Studio API Server")
+        print("[START] LocalLLM Studio API Server")
         print(f"{'=' * 60}")
-        print(f"\n📡 API: http://{host}:{port}")
+        print(f"\n[INFO] API: http://{host}:{port}")
         print(f"   • POST /v1/chat/completions")
         print(f"   • POST /v1/completions")
         print(f"   • GET  /v1/models")
         print(f"   • POST /load")
         print(f"   • GET  /health")
-        print(f"\n🔧 OpenAI SDK compatible:")
+        print(f"\n[CONFIG] OpenAI SDK compatible:")
         print(f'   client = OpenAI(base_url="http://localhost:{port}/v1", api_key="local")')
         print(f"\nPress Ctrl+C to stop\n")
         

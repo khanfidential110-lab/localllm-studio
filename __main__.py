@@ -36,7 +36,7 @@ def print_banner():
     print("""
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║   🚀 LocalLLM Studio                                             ║
+║   [START] LocalLLM Studio                                             ║
 ║   ─────────────────────────────────────────────────────────────── ║
 ║   Cross-Platform Local LLM Application                           ║
 ║   Version: {version:10}                                           ║
@@ -57,7 +57,7 @@ def select_model_interactive(hw):
     fitting_models = get_models_that_fit(available_gb)
     best_model = get_best_model_for_memory(available_gb)
     
-    print("\n📦 MODEL SELECTION")
+    print("\n[PACKAGE] MODEL SELECTION")
     print("=" * 60)
     print(f"Available Memory: {available_gb:.1f} GB")
     print(f"Recommended: {best_model.name} ({best_model.size_gb:.1f} GB)")
@@ -99,7 +99,7 @@ def run_cli(args):
     backend = LlamaCppBackend()
     
     if not backend.is_available():
-        print("\n❌ llama-cpp-python not installed!")
+        print("\n[ERROR] llama-cpp-python not installed!")
         print("   Install with: pip install llama-cpp-python")
         print("   For GPU: pip install llama-cpp-python --extra-index-url ...")
         sys.exit(1)
@@ -111,7 +111,7 @@ def run_cli(args):
         model_path = select_model_interactive(hw)
     
     # Load model
-    print(f"\n📥 Loading model: {model_path}")
+    print(f"\n[LOAD] Loading model: {model_path}")
     print("   (First run will download from HuggingFace)")
     
     try:
@@ -121,7 +121,7 @@ def run_cli(args):
             n_gpu_layers=args.gpu_layers,
         )
     except Exception as e:
-        print(f"\n❌ Error loading model: {e}")
+        print(f"\n[ERROR] Error loading model: {e}")
         sys.exit(1)
     
     # Chat loop
@@ -147,7 +147,7 @@ def run_cli(args):
             
             if user_input.lower() == 'clear':
                 messages = []
-                print("🗑️  Conversation cleared.\n")
+                print("[CLEAR]  Conversation cleared.\n")
                 continue
             
             if user_input.lower() == 'stats':
@@ -190,9 +190,9 @@ def run_cli(args):
             messages.append({"role": "assistant", "content": full_response})
             
         except KeyboardInterrupt:
-            print("\n\n⚠️  Use 'quit' to exit properly.")
+            print("\n\n[WARN]  Use 'quit' to exit properly.")
         except Exception as e:
-            print(f"\n❌ Error: {e}\n")
+            print(f"\n[ERROR] Error: {e}\n")
 
 
 def run_api(args):
@@ -207,12 +207,12 @@ def run_api(args):
     backend = LlamaCppBackend()
     
     if not backend.is_available():
-        print("\n❌ llama-cpp-python not installed!")
+        print("\n[ERROR] llama-cpp-python not installed!")
         sys.exit(1)
     
     # Pre-load model if specified
     if args.model:
-        print(f"\n📥 Pre-loading model: {args.model}")
+        print(f"\n[LOAD] Pre-loading model: {args.model}")
         backend.load_model(
             args.model,
             n_ctx=args.context_length,
@@ -237,12 +237,12 @@ def run_web(args):
     backend = LlamaCppBackend()
     
     if not backend.is_available():
-        print("\n❌ llama-cpp-python not installed!")
+        print("\n[ERROR] llama-cpp-python not installed!")
         sys.exit(1)
     
     # Pre-load model if specified
     if args.model:
-        print(f"\n📥 Pre-loading model: {args.model}")
+        print(f"\n[LOAD] Pre-loading model: {args.model}")
         backend.load_model(
             args.model,
             n_ctx=args.context_length,

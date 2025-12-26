@@ -70,7 +70,7 @@ class MLXBackend(InferenceBackend):
                 "Note: Only works on Apple Silicon Macs."
             )
         
-        print(f"📥 Loading MLX model: {model_path}")
+        print(f"[LOAD] Loading MLX model: {model_path}")
         
         try:
             self._model, self._tokenizer = load(model_path)
@@ -110,7 +110,7 @@ class MLXBackend(InferenceBackend):
             parameters=params,
         )
         
-        print(f"✅ Model loaded!")
+        print(f"[OK] Model loaded!")
         return self._model_info
     
     def unload_model(self) -> None:
