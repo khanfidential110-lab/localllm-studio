@@ -55,7 +55,7 @@ jobs:
     - name: Install macOS Dependencies
       if: runner.os == 'macOS'
       run: |
-        brew install cmake
+        brew list cmake || brew install cmake
 
     - name: Install Dependencies
       run: |
